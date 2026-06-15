@@ -1,0 +1,48 @@
+{
+  "name": "command-code-go-pi-provider",
+  "version": "1.0.0",
+  "author": "KRoperUK",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KRoperUK/command-code-go-pi-provider.git"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.ts"
+    }
+  },
+  "files": [
+    "src/",
+    "models.json"
+  ],
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "keywords": [
+    "pi",
+    "pi-provider",
+    "pi-extension",
+    "commandcode",
+    "ai",
+    "llm",
+    "claude",
+    "gpt",
+    "gemini",
+    "deepseek",
+    "qwen",
+    "kimi",
+    "glm",
+    "minimax"
+  ],
+  "description": "Command Code API provider for Oh My Pi (omp/pi-coding-agent). Use Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax, Step models via Command Code."
+}
