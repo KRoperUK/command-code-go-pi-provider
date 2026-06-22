@@ -108,7 +108,7 @@ function convertAssistantMessage(msg: AssistantMessage): CCMessage | null {
         break;
       case "toolCall": {
         const tc = part as PiToolCall;
-        let input: unknown = tc.arguments || {};
+        const input: unknown = tc.arguments || {};
         parts.push({
           type: "tool-call",
           toolCallId: tc.id,
@@ -205,7 +205,7 @@ export function buildRequest(
   const messages: CCMessage[] = [];
 
   for (const msg of context.messages) {
-    if (msg.role === "developer" || (msg as any).role === "system") {
+    if (msg.role === "developer" || (msg as unknown as Record<string, unknown>).role === "system") {
       systemPrompt += (systemPrompt ? "\n\n" : "") + extractText((msg as UserMessage).content);
       continue;
     }
