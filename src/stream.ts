@@ -30,7 +30,14 @@ export function createOutput(modelId: string): AssistantMessage {
     api: "commandcode",
     provider: "commandcode",
     model: modelId,
-    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0 },
+    usage: {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 }
+    },
     stopReason: "stop",
     timestamp: Date.now(),
   };
@@ -90,7 +97,7 @@ function processEvent(
     case "reasoning-start": {
       if (active) closeBlock(active, output, stream);
       const idx = output.content.length;
-      output.content.push({ type: "thinking", text: "" });
+      output.content.push({ type: "thinking", thinking: "" });
       stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
       return { contentIndex: idx, type: "thinking", buffer: "" };
     }
@@ -101,7 +108,7 @@ function processEvent(
       if (!active || active.type !== "thinking") {
         if (active) closeBlock(active, output, stream);
         const idx = output.content.length;
-        output.content.push({ type: "thinking", text: "" });
+        output.content.push({ type: "thinking", thinking: "" });
         stream.push({ type: "thinking_start", contentIndex: idx, partial: output });
         active = { contentIndex: idx, type: "thinking", buffer: text };
         stream.push({ type: "thinking_delta", contentIndex: idx, delta: text, partial: output });
@@ -133,7 +140,7 @@ function processEvent(
       if (active) closeBlock(active, output, stream);
 
       const idx = output.content.length;
-      output.content.push({ type: "toolCall", id, name, arguments: "" });
+      output.content.push({ type: "toolCall", id, name, arguments: {} });
       stream.push({ type: "toolcall_start", contentIndex: idx, partial: output });
       return {
         contentIndex: idx,
@@ -164,7 +171,7 @@ function processEvent(
 
       const entry = output.content[active.contentIndex];
       if (entry && entry.type === "toolCall") {
-        entry.arguments = active.buffer;
+        entry.arguments = JSON.parse(active.buffer || "{}");
       }
 
       stream.push({
@@ -174,7 +181,7 @@ function processEvent(
           type: "toolCall",
           id: active.toolCallId ?? id,
           name: active.toolCallName ?? "",
-          arguments: active.buffer,
+          arguments: JSON.parse(active.buffer || "{}"),
         },
         partial: output,
       });
@@ -229,10 +236,8 @@ function processEvent(
             | string
             | undefined;
           if (typeof costStr === "string") {
-            output.costCents = Math.round(Number.parseFloat(costStr) * 100 * 100) / 100;
-            if (!output.providerPayload) output.providerPayload = {};
-            (output.providerPayload as Record<string, unknown>).cost = costStr;
-            (output.providerPayload as Record<string, unknown>).generationId = gateway.generationId;
+            output.usage.cost.total = Number.parseFloat(costStr);
+            output.responseId = gateway.generationId as string;
           }
         }
         for (const providerMeta of Object.values(meta)) {
@@ -284,7 +289,7 @@ function closeBlock(
       });
       break;
     case "thinking":
-      (entry as { type: string; text: string }).text = block.buffer;
+      (entry as { type: string; thinking: string }).thinking = block.buffer;
       stream.push({
         type: "thinking_end",
         contentIndex: block.contentIndex,

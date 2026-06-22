@@ -11,9 +11,9 @@ import type {
   Context,
   SimpleStreamOptions,
 } from "@oh-my-pi/pi-ai";
-import { AssistantMessageEventStream as StreamImpl } from "@oh-my-pi/pi-ai";
+import { AssistantMessageEventStream as StreamImpl } from "@oh-my-pi/pi-ai/utils/event-stream";
 import type { Api, Model } from "@oh-my-pi/pi-catalog";
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-agent";
 
 import { resolveApiKey } from "./auth.js";
 import { CC_API, CC_API_KEY_ENV, CC_BASE_URL, CC_PROVIDER } from "./config.js";
@@ -190,7 +190,7 @@ function registerCommandCode(pi: ExtensionAPI): void {
 
   pi.registerCommand("commandcode", {
     description: "Command Code: /commandcode [status|models|usage|login]",
-    async handler(args: string, ctx: { ui: { notify: (msg: string, type?: string) => void } }) {
+    async handler(args: string, ctx: ExtensionCommandContext) {
       const trimmed = args.trim();
       const action = trimmed.toLowerCase() || "status";
 
@@ -218,7 +218,7 @@ function registerCommandCode(pi: ExtensionAPI): void {
           ctx.ui.notify(
             "No session token configured. Run /login commandcode to set one up.\n\n" +
               "You'll need your browser session token from commandcode.ai cookies.",
-            "warn",
+            "warning",
           );
           return;
         }
