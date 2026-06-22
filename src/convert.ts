@@ -11,9 +11,11 @@ import type {
   ToolCall as PiToolCall,
   ToolResultMessage,
   UserMessage,
+  Tool,
+  Context,
 } from "@oh-my-pi/pi-ai";
-
-import type { Tool, Context } from "@oh-my-pi/pi-ai";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 // --- CC wire types ---
 
@@ -173,9 +175,30 @@ export function convertTools(tools: Tool[] | undefined): CCTool[] {
 
 // --- Main build function ---
 
+let _gitInfo: { isRepo: boolean; branch: string } | undefined;
+function getGitInfo(): { isRepo: boolean; branch: string } {
+  if (_gitInfo !== undefined) return _gitInfo;
+  try {
+    const cwd = process.cwd?.() ?? ".";
+    const dotGit = join(cwd, ".git");
+    if (!existsSync(dotGit)) return (_gitInfo = { isRepo: false, branch: "" });
+    const head = readFileSync(join(dotGit, "HEAD"), "utf-8").trim();
+    let branch = "";
+    if (head.startsWith("ref: refs/heads/")) {
+      branch = head.slice(16);
+    } else {
+      branch = head.slice(0, 8); // detached HEAD, use short hash
+    }
+    return (_gitInfo = { isRepo: true, branch });
+  } catch {
+    return (_gitInfo = { isRepo: false, branch: "" });
+  }
+}
+
 export function buildRequest(
   modelId: string,
   context: Context,
+  maxTokens?: number | null,
 ): CCRequestEnvelope {
   let systemPrompt = "";
   const messages: CCMessage[] = [];
@@ -194,12 +217,14 @@ export function buildRequest(
     systemPrompt += (systemPrompt ? "\n\n" : "") + context.systemPrompt.join("\n\n");
   }
 
+  const git = getGitInfo();
+
   const params: CCRequestEnvelope["params"] = {
     model: modelId,
     messages,
     tools: convertTools(context.tools),
     system: systemPrompt,
-    max_tokens: 16384,
+    max_tokens: maxTokens ?? 16384,
     stream: true,
   };
 
@@ -209,8 +234,8 @@ export function buildRequest(
       date: new Date().toISOString().split("T")[0] ?? "",
       environment: `${process.platform ?? "unknown"}-${process.arch ?? "unknown"}`,
       structure: [],
-      isGitRepo: false,
-      currentBranch: "",
+      isGitRepo: git.isRepo,
+      currentBranch: git.branch,
       mainBranch: "",
       gitStatus: "",
       recentCommits: [],

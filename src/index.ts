@@ -48,7 +48,7 @@ function streamSimple(
 
   const baseUrl = model.baseUrl ?? CC_BASE_URL;
   const ccModelId = model.requestModelId ?? model.id;
-  const request = buildRequest(ccModelId, context);
+  const request = buildRequest(ccModelId, context, options?.maxTokens ?? model.maxTokens);
   const stream = new StreamImpl();
   const output = createOutput(request.params.model);
 
@@ -75,7 +75,7 @@ function streamSimple(
           Authorization: `Bearer ${apiKey}`,
           "x-command-code-version": "0.26.20",
           "x-cli-environment": "production",
-          "x-project-slug": "oh-my-pi",
+          "x-project-slug": process.env["COMMANDCODE_PROJECT_SLUG"] ?? "oh-my-pi",
         },
         body: JSON.stringify(request),
         signal: controller.signal,
@@ -223,7 +223,6 @@ function registerCommandCode(pi: ExtensionAPI): void {
         return;
       }
 
-        {
       if (action === "usage") {
         const { resolveSessionToken } = await import("./auth.js");
         const sessionToken = resolveSessionToken();
@@ -337,11 +336,12 @@ function registerCommandCode(pi: ExtensionAPI): void {
           lines.push("");
           lines.push("  Full balance → https://commandcode.ai");
           ctx.ui.notify(lines.join("\n"), "info");
+          return;
         } catch (err) {
           ctx.ui.notify(`Failed to fetch usage: ${err instanceof Error ? err.message : String(err)}`, "error");
+          return;
         }
-        } // end if (action === "usage")
-        }
+      }
 
       // Default: status
       const { resolveApiKey, resolveSessionToken } = await import("./auth.js");
