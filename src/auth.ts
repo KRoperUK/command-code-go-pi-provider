@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -14,8 +14,7 @@ export function resolveApiKey(options?: {
 }): string | undefined {
   if (options?.apiKey) return options.apiKey;
 
-  const envKey =
-    options?.env?.[CC_API_KEY_ENV] ?? process.env[CC_API_KEY_ENV];
+  const envKey = options?.env?.[CC_API_KEY_ENV] ?? process.env[CC_API_KEY_ENV];
   if (envKey) return envKey;
 
   const authPaths = [
@@ -39,10 +38,7 @@ export function resolveApiKey(options?: {
           return parsed.commandcode.access;
         }
       }
-    } catch {
-      // intentionally silent: skip unreadable or malformed auth files
-      continue;
-    }
+    } catch {}
   }
 
   return undefined;
@@ -75,9 +71,7 @@ export function resolveSessionToken(): string | undefined {
           return parsed.commandcode.sessionToken;
         }
       }
-    } catch {
-      continue;
-    }
+    } catch {}
   }
 
   return undefined;

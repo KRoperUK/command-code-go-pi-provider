@@ -3,19 +3,19 @@
  * /alpha/generate request envelope.
  */
 
-import type {
-  AssistantMessage,
-  Message,
-  TextContent,
-  ThinkingContent,
-  ToolCall as PiToolCall,
-  ToolResultMessage,
-  UserMessage,
-  Tool,
-  Context,
-} from "@oh-my-pi/pi-ai";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type {
+  AssistantMessage,
+  Context,
+  Message,
+  ToolCall as PiToolCall,
+  TextContent,
+  ThinkingContent,
+  Tool,
+  ToolResultMessage,
+  UserMessage,
+} from "@oh-my-pi/pi-ai";
 
 // --- CC wire types ---
 
@@ -78,8 +78,9 @@ function extractText(content: string | unknown[]): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter((p): p is { type: "text"; text: string } =>
-        typeof p === "object" && p !== null && (p as { type?: string }).type === "text",
+      .filter(
+        (p): p is { type: "text"; text: string } =>
+          typeof p === "object" && p !== null && (p as { type?: string }).type === "text",
       )
       .map((p) => p.text)
       .join("\n");
@@ -181,7 +182,10 @@ function getGitInfo(): { isRepo: boolean; branch: string } {
   try {
     const cwd = process.cwd?.() ?? ".";
     const dotGit = join(cwd, ".git");
-    if (!existsSync(dotGit)) return (_gitInfo = { isRepo: false, branch: "" });
+    if (!existsSync(dotGit)) {
+      _gitInfo = { isRepo: false, branch: "" };
+      return _gitInfo;
+    }
     const head = readFileSync(join(dotGit, "HEAD"), "utf-8").trim();
     let branch = "";
     if (head.startsWith("ref: refs/heads/")) {
@@ -189,9 +193,11 @@ function getGitInfo(): { isRepo: boolean; branch: string } {
     } else {
       branch = head.slice(0, 8); // detached HEAD, use short hash
     }
-    return (_gitInfo = { isRepo: true, branch });
+    _gitInfo = { isRepo: true, branch };
+    return _gitInfo;
   } catch {
-    return (_gitInfo = { isRepo: false, branch: "" });
+    _gitInfo = { isRepo: false, branch: "" };
+    return _gitInfo;
   }
 }
 

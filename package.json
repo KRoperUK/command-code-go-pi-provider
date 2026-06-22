@@ -25,9 +25,23 @@
     ]
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src/",
+    "lint:fix": "biome check --write src/",
+    "format": "biome format src/",
+    "format:fix": "biome format --write src/",
+    "test": "bun test",
+    "check": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {},
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@oh-my-pi/pi-ai": "16.1.15",
+    "@oh-my-pi/pi-catalog": "16.1.15",
+    "@oh-my-pi/pi-coding-agent": "16.1.15",
+    "@types/bun": "^1.2.0",
+    "typescript": "^5.7.0"
+  },
   "keywords": [
     "pi",
     "pi-provider",

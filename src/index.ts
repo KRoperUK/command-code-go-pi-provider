@@ -5,23 +5,18 @@
  * catalog and implements custom streaming for the /alpha/generate endpoint.
  */
 
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 import type {
   AssistantMessage,
   AssistantMessageEventStream,
   Context,
   SimpleStreamOptions,
 } from "@oh-my-pi/pi-ai";
-import type { Api, Model } from "@oh-my-pi/pi-catalog";
 import { AssistantMessageEventStream as StreamImpl } from "@oh-my-pi/pi-ai";
+import type { Api, Model } from "@oh-my-pi/pi-catalog";
+import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
 
 import { resolveApiKey } from "./auth.js";
-import {
-  CC_API,
-  CC_API_KEY_ENV,
-  CC_BASE_URL,
-  CC_PROVIDER,
-} from "./config.js";
+import { CC_API, CC_API_KEY_ENV, CC_BASE_URL, CC_PROVIDER } from "./config.js";
 import { buildRequest } from "./convert.js";
 import { loadPiModels } from "./models.js";
 import { createOutput, parseSSEStream } from "./stream.js";
@@ -36,13 +31,11 @@ function streamSimple(
   const apiKey =
     (typeof options?.apiKey === "string" && !(options.apiKey as string).startsWith("$")
       ? (options.apiKey as string)
-      : undefined) ??
-    resolveApiKey();
+      : undefined) ?? resolveApiKey();
 
   if (!apiKey) {
     throw new Error(
-      `No API key for Command Code. Set ${CC_API_KEY_ENV} env var, ` +
-        `create ~/.commandcode/auth.json, or run /login commandcode.`,
+      `No API key for Command Code. Set ${CC_API_KEY_ENV} env var, create ~/.commandcode/auth.json, or run /login commandcode.`,
     );
   }
 
@@ -63,7 +56,7 @@ function streamSimple(
       );
 
       if (options?.signal) {
-        const onAbort = () => controller.abort(options.signal!.reason);
+        const onAbort = () => controller.abort(options.signal?.reason);
         options.signal.addEventListener("abort", onAbort, { once: true });
       }
 
@@ -75,7 +68,7 @@ function streamSimple(
           Authorization: `Bearer ${apiKey}`,
           "x-command-code-version": "0.26.20",
           "x-cli-environment": "production",
-          "x-project-slug": process.env["COMMANDCODE_PROJECT_SLUG"] ?? "oh-my-pi",
+          "x-project-slug": process.env.COMMANDCODE_PROJECT_SLUG ?? "oh-my-pi",
         },
         body: JSON.stringify(request),
         signal: controller.signal,
@@ -115,8 +108,7 @@ function streamSimple(
         output.stopReason = "aborted";
       } else {
         output.stopReason = "error";
-        output.errorMessage =
-          error instanceof Error ? error.message : String(error);
+        output.errorMessage = error instanceof Error ? error.message : String(error);
       }
       stream.push({
         type: "error",
@@ -159,7 +151,9 @@ function registerCommandCode(pi: ExtensionAPI): void {
         if (!sessionToken) throw new Error("Session token required");
 
         // Normalise: URL-decode if pasted encoded (e.g. from curl -b), store raw
-        const rawToken = sessionToken.includes("%") ? decodeURIComponent(sessionToken) : sessionToken;
+        const rawToken = sessionToken.includes("%")
+          ? decodeURIComponent(sessionToken)
+          : sessionToken;
 
         // Store session token in auth file so resolveSessionToken() can find it
         const { writeFileSync, existsSync, readFileSync, mkdirSync } = await import("node:fs");
@@ -169,7 +163,11 @@ function registerCommandCode(pi: ExtensionAPI): void {
         mkdirSync(join(homedir(), ".commandcode"), { recursive: true });
         let existing: Record<string, unknown> = {};
         if (existsSync(authPath)) {
-          try { existing = JSON.parse(readFileSync(authPath, "utf-8")); } catch { /* ignore */ }
+          try {
+            existing = JSON.parse(readFileSync(authPath, "utf-8"));
+          } catch {
+            /* ignore */
+          }
         }
         existing.sessionToken = rawToken;
         writeFileSync(authPath, JSON.stringify(existing, null, 2));
@@ -191,12 +189,8 @@ function registerCommandCode(pi: ExtensionAPI): void {
   });
 
   pi.registerCommand("commandcode", {
-    description:
-      "Command Code: /commandcode [status|models|usage|login]",
-    async handler(
-      args: string,
-      ctx: { ui: { notify: (msg: string, type?: string) => void } },
-    ) {
+    description: "Command Code: /commandcode [status|models|usage|login]",
+    async handler(args: string, ctx: { ui: { notify: (msg: string, type?: string) => void } }) {
       const trimmed = args.trim();
       const action = trimmed.toLowerCase() || "status";
 
@@ -206,20 +200,14 @@ function registerCommandCode(pi: ExtensionAPI): void {
           (m) =>
             `  • ${m.id} — ${m.name} (${m.contextWindow?.toLocaleString() ?? "?"} ctx, ${m.reasoning ? "reasoning" : "standard"})`,
         );
-        ctx.ui.notify(
-          `Command Code models (${allModels.length}):\n${lines.join("\n")}`,
-          "info",
-        );
+        ctx.ui.notify(`Command Code models (${allModels.length}):\n${lines.join("\n")}`, "info");
         return;
       }
 
       if (action === "refresh-models") {
         const { loadModels } = await import("./models.js");
         const fresh = loadModels();
-        ctx.ui.notify(
-          `Refreshed Command Code catalog: ${fresh.length} models available.`,
-          "info",
-        );
+        ctx.ui.notify(`Refreshed Command Code catalog: ${fresh.length} models available.`, "info");
         return;
       }
 
@@ -229,7 +217,7 @@ function registerCommandCode(pi: ExtensionAPI): void {
         if (!sessionToken) {
           ctx.ui.notify(
             "No session token configured. Run /login commandcode to set one up.\n\n" +
-            "You'll need your browser session token from commandcode.ai cookies.",
+              "You'll need your browser session token from commandcode.ai cookies.",
             "warn",
           );
           return;
@@ -251,20 +239,27 @@ function registerCommandCode(pi: ExtensionAPI): void {
             if (summaryRes.status === 401) {
               ctx.ui.notify("Session token expired. Re-run /login commandcode.", "error");
             } else {
-              ctx.ui.notify(`Usage API error: ${summaryRes.status} ${summaryRes.statusText}`, "error");
+              ctx.ui.notify(
+                `Usage API error: ${summaryRes.status} ${summaryRes.statusText}`,
+                "error",
+              );
             }
             return;
           }
 
-          const summary = await summaryRes.json() as {
-            totalCost?: number; totalCredits?: number; totalCount?: number;
-            totalTokensIn?: string; totalTokensOut?: string; periodBasis?: string;
+          const summary = (await summaryRes.json()) as {
+            totalCost?: number;
+            totalCredits?: number;
+            totalCount?: number;
+            totalTokensIn?: string;
+            totalTokensOut?: string;
+            periodBasis?: string;
             models?: Array<{ model: string; totalCost: number; count: number }>;
           };
 
           let availableCredits = 0;
           if (creditsRes.ok) {
-            const creditsData = await creditsRes.json() as {
+            const creditsData = (await creditsRes.json()) as {
               credits?: { monthlyCredits?: number };
             };
             availableCredits = creditsData.credits?.monthlyCredits ?? 0;
@@ -278,19 +273,21 @@ function registerCommandCode(pi: ExtensionAPI): void {
             return;
           }
 
-
-
           // Progress bar (20 chars wide)
-          const pct = availableCredits > 0 ? ((totalCredits / availableCredits) * 100).toFixed(0) : null;
-          const pctNum = pct !== null ? parseInt(pct, 10) : 0;
+          const pct =
+            availableCredits > 0 ? ((totalCredits / availableCredits) * 100).toFixed(0) : null;
+          const pctNum = pct !== null ? Number.parseInt(pct, 10) : 0;
           const remainingPct = 100 - pctNum;
-          const tokIn = parseInt(summary.totalTokensIn ?? "0", 10);
-          const tokOut = parseInt(summary.totalTokensOut ?? "0", 10);
+          const tokIn = Number.parseInt(summary.totalTokensIn ?? "0", 10);
+          const tokOut = Number.parseInt(summary.totalTokensOut ?? "0", 10);
 
           // Progress bar
           const barWidth = 28;
-          const filled = Math.round(pctNum / 100 * barWidth);
-          const bar = "█".repeat(filled) + "▒".repeat(Math.min(1, barWidth - filled)) + "░".repeat(Math.max(0, barWidth - filled - 1));
+          const filled = Math.round((pctNum / 100) * barWidth);
+          const bar =
+            "█".repeat(filled) +
+            "▒".repeat(Math.min(1, barWidth - filled)) +
+            "░".repeat(Math.max(0, barWidth - filled - 1));
 
           // Model breakdown
           const modelTable = (summary.models ?? [])
@@ -302,9 +299,7 @@ function registerCommandCode(pi: ExtensionAPI): void {
               return `${name} ${count} req  ${cost}`;
             });
 
-          const lines = [
-            "Command Code",
-          ];
+          const lines = ["Command Code"];
 
           if (availableCredits > 0) {
             lines.push(
@@ -316,7 +311,9 @@ function registerCommandCode(pi: ExtensionAPI): void {
           }
 
           lines.push("");
-          lines.push(`  ${totalCount} requests · ${tokIn.toLocaleString()} in / ${tokOut.toLocaleString()} out tok · ${summary.periodBasis === "billing-period" ? "billing period" : summary.periodBasis ?? "all time"}`);
+          lines.push(
+            `  ${totalCount} requests · ${tokIn.toLocaleString()} in / ${tokOut.toLocaleString()} out tok · ${summary.periodBasis === "billing-period" ? "billing period" : (summary.periodBasis ?? "all time")}`,
+          );
           lines.push("");
 
           if (modelTable.length > 0) {
@@ -338,7 +335,10 @@ function registerCommandCode(pi: ExtensionAPI): void {
           ctx.ui.notify(lines.join("\n"), "info");
           return;
         } catch (err) {
-          ctx.ui.notify(`Failed to fetch usage: ${err instanceof Error ? err.message : String(err)}`, "error");
+          ctx.ui.notify(
+            `Failed to fetch usage: ${err instanceof Error ? err.message : String(err)}`,
+            "error",
+          );
           return;
         }
       }
@@ -350,15 +350,15 @@ function registerCommandCode(pi: ExtensionAPI): void {
       const allModels = loadPiModels();
       ctx.ui.notify(
         [
-          `Command Code provider: registered`,
+          "Command Code provider: registered",
           `API key: ${key ? "configured ✅" : "missing ❌"}`,
           `Session token: ${sessionToken ? "configured ✅" : "not set — /login to add for /usage"}`,
           `Models: ${allModels.length} available`,
-          ``,
+          "",
           `Base URL: ${CC_BASE_URL}`,
-          `Endpoint: /alpha/generate`,
-          ``,
-          `Commands: /commandcode status | models | usage | login`,
+          "Endpoint: /alpha/generate",
+          "",
+          "Commands: /commandcode status | models | usage | login",
         ].join("\n"),
         "info",
       );

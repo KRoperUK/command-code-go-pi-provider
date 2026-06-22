@@ -7,11 +7,7 @@
  *   (reasoning-start/delta/end interleave with text)
  */
 
-import type {
-  AssistantMessage,
-  AssistantMessageEventStream,
-  StopReason,
-} from "@oh-my-pi/pi-ai";
+import type { AssistantMessage, AssistantMessageEventStream, StopReason } from "@oh-my-pi/pi-ai";
 
 // --- SSE types ---
 
@@ -46,8 +42,9 @@ function processEvent(
   event: RawEvent,
   output: AssistantMessage,
   stream: AssistantMessageEventStream,
-  active: ActiveBlock | null,
+  incoming: ActiveBlock | null,
 ): ActiveBlock | null {
+  let active = incoming;
   switch (event.type) {
     // --- Text ---
     case "text-start": {
@@ -71,7 +68,12 @@ function processEvent(
         stream.push({ type: "text_delta", contentIndex: idx, delta: text, partial: output });
       } else {
         active.buffer += text;
-        stream.push({ type: "text_delta", contentIndex: active.contentIndex, delta: text, partial: output });
+        stream.push({
+          type: "text_delta",
+          contentIndex: active.contentIndex,
+          delta: text,
+          partial: output,
+        });
       }
       return active;
     }
@@ -105,7 +107,12 @@ function processEvent(
         stream.push({ type: "thinking_delta", contentIndex: idx, delta: text, partial: output });
       } else {
         active.buffer += text;
-        stream.push({ type: "thinking_delta", contentIndex: active.contentIndex, delta: text, partial: output });
+        stream.push({
+          type: "thinking_delta",
+          contentIndex: active.contentIndex,
+          delta: text,
+          partial: output,
+        });
       }
       return active;
     }
@@ -182,8 +189,7 @@ function processEvent(
         output.usage.output = usage.outputTokens ?? output.usage.output;
         output.usage.cacheRead = usage.cacheReadInputTokens ?? 0;
         output.usage.cacheWrite = usage.cacheCreationInputTokens ?? 0;
-        output.usage.totalTokens =
-          (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+        output.usage.totalTokens = (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
       }
       // Extract stop reason if present
       const reason = event.finishReason as string | undefined;
@@ -199,8 +205,7 @@ function processEvent(
         output.usage.output = totalUsage.outputTokens ?? output.usage.output;
         output.usage.cacheRead = totalUsage.cacheReadInputTokens ?? 0;
         output.usage.cacheWrite = totalUsage.cacheCreationInputTokens ?? 0;
-        output.usage.totalTokens =
-          (totalUsage.inputTokens ?? 0) + (totalUsage.outputTokens ?? 0);
+        output.usage.totalTokens = (totalUsage.inputTokens ?? 0) + (totalUsage.outputTokens ?? 0);
       }
       const reason = event.finishReason as string | undefined;
       if (reason) output.stopReason = mapStopReason(reason);
@@ -218,19 +223,21 @@ function processEvent(
       // Extract gateway cost and cache info
       const meta = event.providerMetadata as Record<string, Record<string, unknown>> | undefined;
       if (meta) {
-        const gateway = meta["gateway"];
+        const gateway = meta.gateway;
         if (gateway) {
-          const costStr = (gateway["cost"] ?? gateway["gatewayCost"] ?? gateway["inferenceCost"]) as string | undefined;
+          const costStr = (gateway.cost ?? gateway.gatewayCost ?? gateway.inferenceCost) as
+            | string
+            | undefined;
           if (typeof costStr === "string") {
-            output.costCents = Math.round(parseFloat(costStr) * 100 * 100) / 100;
+            output.costCents = Math.round(Number.parseFloat(costStr) * 100 * 100) / 100;
             if (!output.providerPayload) output.providerPayload = {};
-            (output.providerPayload as Record<string, unknown>)["cost"] = costStr;
-            (output.providerPayload as Record<string, unknown>)["generationId"] = gateway["generationId"];
+            (output.providerPayload as Record<string, unknown>).cost = costStr;
+            (output.providerPayload as Record<string, unknown>).generationId = gateway.generationId;
           }
         }
         for (const providerMeta of Object.values(meta)) {
-          if (typeof providerMeta["promptCacheHitTokens"] === "number") {
-            output.usage.cacheRead = providerMeta["promptCacheHitTokens"] as number;
+          if (typeof providerMeta.promptCacheHitTokens === "number") {
+            output.usage.cacheRead = providerMeta.promptCacheHitTokens as number;
           }
         }
       }
@@ -352,23 +359,23 @@ export async function parseSSEStream(
           if (event && typeof event.type === "string") {
             active = processEvent(event, output, stream, active);
           }
-        } catch {
-          continue;
-        }
+        } catch {}
       }
     }
 
     // Flush remaining buffer
     const remaining = buffer.trim();
     if (remaining && !remaining.startsWith(":")) {
-      let jsonStr = remaining.startsWith("data:") ? remaining.slice(5).trim() : remaining;
+      const jsonStr = remaining.startsWith("data:") ? remaining.slice(5).trim() : remaining;
       if (jsonStr && jsonStr !== "[DONE]") {
         try {
           const event = JSON.parse(jsonStr) as RawEvent;
           if (event && typeof event.type === "string") {
             active = processEvent(event, output, stream, active);
           }
-        } catch { /* skip */ }
+        } catch {
+          /* skip */
+        }
       }
     }
   } finally {
