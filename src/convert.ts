@@ -224,7 +224,7 @@ export function buildRequest(
     messages,
     tools: convertTools(context.tools),
     system: systemPrompt,
-    max_tokens: maxTokens ?? 16384,
+    max_tokens: Math.min(maxTokens ?? 16384, 200_000),
     stream: true,
   };
 
