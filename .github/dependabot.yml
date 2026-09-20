@@ -1,0 +1,18 @@
+version: 2
+updates:
+
+  # GitHub Actions — keeps the SHA-pinned actions in .github/workflows current.
+  # Batched into one weekly PR.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      github-actions:
+        patterns: ["*"]
