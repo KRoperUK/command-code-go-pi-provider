@@ -17,7 +17,8 @@
   },
   "files": [
     "src/",
-    "models.json"
+    "models.json",
+    "credit-stretch.json"
   ],
   "pi": {
     "extensions": [
@@ -31,6 +32,8 @@
     "format": "biome format src/",
     "format:fix": "biome format --write src/",
     "test": "bun test",
+    "sync": "bun scripts/sync-models.ts",
+    "sync:check": "bun scripts/sync-models.ts --check",
     "check": "bun run typecheck && bun run lint && bun test"
   },
   "dependencies": {},
