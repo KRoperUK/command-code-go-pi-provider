@@ -115,6 +115,54 @@ describe("buildRequest", () => {
     expect(typeof result.config.isGitRepo).toBe("boolean");
     expect(result.config.currentBranch).toBeString();
   });
+
+  test("keeps text-only array content as a legacy string", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "First part" },
+            { type: "text", text: "Second part" },
+          ],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages[0]!.content).toBe("First part\nSecond part");
+  });
+
+  test("passes image parts through as structured content", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is in this image?" },
+            { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+          ],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages[0]!.content).toEqual([
+      { type: "text", text: "What is in this image?" },
+      { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+    ]);
+  });
+
+  test("passes image-only messages through without text", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" }],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages).toHaveLength(1);
+  });
 });
 
 describe("convertTools", () => {

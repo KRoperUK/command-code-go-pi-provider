@@ -12,6 +12,7 @@ export interface CCModelEntry {
   tier: "premium" | "open-source";
   reasoning: boolean;
   tool_call: boolean;
+  vision?: boolean;
   cost: {
     input: number;
     output: number;
@@ -40,7 +41,7 @@ export function toPiModel(entry: CCModelEntry): ProviderModelConfig {
     id: entry.id,
     name: entry.name,
     reasoning: entry.reasoning,
-    input: ["text" as const],
+    input: entry.vision ? (["text", "image"] as const) : (["text"] as const),
     cost: {
       input: entry.cost.input,
       output: entry.cost.output,
