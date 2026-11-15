@@ -115,6 +115,93 @@ describe("buildRequest", () => {
     expect(typeof result.config.isGitRepo).toBe("boolean");
     expect(result.config.currentBranch).toBeString();
   });
+
+  test("keeps text-only array content as a legacy string", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "First part" },
+            { type: "text", text: "Second part" },
+          ],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages[0]!.content).toBe("First part\nSecond part");
+  });
+
+  test("passes image parts through as structured content", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is in this image?" },
+            { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+          ],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages[0]!.content).toEqual([
+      { type: "text", text: "What is in this image?" },
+      { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+    ]);
+  });
+
+  test("passes image-only messages through without text", () => {
+    const result = buildRequest("test-model", {
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "image", data: "aGVsbG8=", mimeType: "image/jpeg" }],
+        } as unknown as UserMessage,
+      ],
+    });
+
+    expect(result.params.messages).toHaveLength(1);
+  });
+
+  test("forwards reasoning effort into request params", () => {
+    const result = buildRequest("test-model", { messages: [] }, null, { reasoning: "low" });
+
+    expect(result.params.reasoning_effort).toBe("low");
+  });
+
+  test("disableReasoning overrides an explicit effort with minimal", () => {
+    const result = buildRequest(
+      "test-model",
+      { messages: [] },
+      null,
+      { reasoning: "high", disableReasoning: true },
+    );
+
+    expect(result.params.reasoning_effort).toBe("minimal");
+  });
+
+  test("forwards sampling params when provided", () => {
+    const result = buildRequest(
+      "test-model",
+      { messages: [] },
+      null,
+      { temperature: 0.2, topP: 0.9, topK: 40 },
+    );
+
+    expect(result.params.temperature).toBe(0.2);
+    expect(result.params.top_p).toBe(0.9);
+    expect(result.params.top_k).toBe(40);
+  });
+
+  test("omits reasoning and sampling params by default", () => {
+    const result = buildRequest("test-model", { messages: [] });
+
+    expect(result.params.reasoning_effort).toBeUndefined();
+    expect(result.params.temperature).toBeUndefined();
+    expect(result.params.top_p).toBeUndefined();
+    expect(result.params.top_k).toBeUndefined();
+  });
 });
 
 describe("convertTools", () => {

@@ -18,6 +18,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@oh-my-pi/pi-coding-
 import { resolveApiKey } from "./auth.js";
 import { CC_API, CC_API_KEY_ENV, CC_BASE_URL, CC_PROVIDER } from "./config.js";
 import { buildRequest } from "./convert.js";
+import { formatCreditLines, loadCreditOffers } from "./credits.js";
 import { loadPiModels } from "./models.js";
 import { createOutput, parseSSEStream } from "./stream.js";
 
@@ -41,7 +42,13 @@ function streamSimple(
 
   const baseUrl = model.baseUrl ?? CC_BASE_URL;
   const ccModelId = model.requestModelId ?? model.id;
-  const request = buildRequest(ccModelId, context, options?.maxTokens ?? model.maxTokens);
+  const request = buildRequest(ccModelId, context, options?.maxTokens ?? model.maxTokens, {
+    reasoning: options?.reasoning,
+    disableReasoning: options?.disableReasoning,
+    temperature: options?.temperature,
+    topP: options?.topP,
+    topK: options?.topK,
+  });
   const stream = new StreamImpl();
   const output = createOutput(request.params.model);
 
@@ -325,11 +332,7 @@ function registerCommandCode(pi: ExtensionAPI): void {
           }
 
           lines.push("");
-          lines.push("  Credits stretch 4× on DeepSeek V4 Pro");
-          lines.push("  Credits stretch 2.3× on Nemotron 3 Ultra");
-          lines.push("  Credits stretch 2× on Qwen 3.7 Max");
-          lines.push("  Credits stretch 2× on MiniMax M3");
-          lines.push("  Up to 99% off on MiMo V2.5 Pro");
+          lines.push(...formatCreditLines(loadCreditOffers()));
           lines.push("");
           lines.push("  Full balance → https://commandcode.ai");
           ctx.ui.notify(lines.join("\n"), "info");

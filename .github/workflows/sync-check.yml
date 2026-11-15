@@ -1,0 +1,18 @@
+name: Catalog drift check
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+jobs:
+  drift:
+    name: Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: oven-sh/setup-bun@0c5077e514198686aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun run sync:check

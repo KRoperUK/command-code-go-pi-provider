@@ -116,6 +116,20 @@ bun run check        # lint + test
 
 CI runs `lint` and `test` on every push and PR via GitHub Actions.
 
+### Model catalog sync
+
+`models.json` drifts as Command Code adds or renames models. Refresh it
+from the public provider catalog:
+
+```bash
+bun run sync           # update names/context windows, append new models
+bun run sync --check   # report drift without writing (runs weekly in CI)
+```
+
+New catalog models are appended with placeholder pricing that must be
+filled in manually; models missing from the catalog are reported but
+never deleted. Override the endpoint with `CC_CATALOG_URL`.
+
 ## License
 
 MIT

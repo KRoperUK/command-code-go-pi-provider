@@ -8,6 +8,7 @@ import { join } from "node:path";
 import type {
   AssistantMessage,
   Context,
+  ImageContent,
   Message,
   ToolCall as PiToolCall,
   TextContent,
@@ -19,8 +20,12 @@ import type {
 
 // --- CC wire types ---
 
+type CCUserContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; data: string; mimeType: string };
+
 type CCMessage =
-  | { role: "user"; content: string }
+  | { role: "user"; content: string | CCUserContentPart[] }
   | { role: "assistant"; content: CCAssistantContent[] }
   | { role: "tool"; content: CCToolResultContent[] };
 
@@ -69,7 +74,17 @@ export interface CCRequestEnvelope {
     temperature?: number;
     top_p?: number;
     top_k?: number;
+    reasoning_effort?: string;
   };
+}
+
+/** Sampling and reasoning overrides forwarded into the CC request params. */
+export interface BuildRequestOptions {
+  reasoning?: string;
+  disableReasoning?: boolean;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
 }
 
 // --- Message conversion ---
@@ -89,9 +104,30 @@ function extractText(content: string | unknown[]): string {
 }
 
 function convertUserMessage(msg: UserMessage): CCMessage | null {
-  const text = extractText(msg.content);
-  if (!text) return null;
-  return { role: "user", content: text };
+  if (typeof msg.content === "string") {
+    if (!msg.content) return null;
+    return { role: "user", content: msg.content };
+  }
+  if (!Array.isArray(msg.content)) return null;
+  const parts: CCUserContentPart[] = [];
+  for (const part of msg.content) {
+    if (part.type === "text") {
+      parts.push({ type: "text", text: (part as TextContent).text });
+    } else if (part.type === "image") {
+      const img = part as ImageContent;
+      parts.push({ type: "image", data: img.data, mimeType: img.mimeType });
+    }
+  }
+  const text = parts
+    .filter((p) => p.type === "text")
+    .map((p) => (p as { text: string }).text)
+    .join("\n");
+  if (parts.length === 0) return null;
+  // Text-only messages keep the legacy string shape; messages carrying
+  // images use structured parts so base64 data passes through to the CC API.
+  const hasImage = parts.some((p) => p.type === "image");
+  if (!hasImage && !text) return null;
+  return { role: "user", content: hasImage ? parts : text };
 }
 
 function convertAssistantMessage(msg: AssistantMessage): CCMessage | null {
@@ -200,6 +236,7 @@ export function buildRequest(
   modelId: string,
   context: Context,
   maxTokens?: number | null,
+  requestOptions?: BuildRequestOptions,
 ): CCRequestEnvelope {
   let systemPrompt = "";
   const messages: CCMessage[] = [];
@@ -228,6 +265,17 @@ export function buildRequest(
     max_tokens: Math.min(maxTokens ?? 16384, 200_000),
     stream: true,
   };
+
+  if (requestOptions?.temperature !== undefined) params.temperature = requestOptions.temperature;
+  if (requestOptions?.topP !== undefined) params.top_p = requestOptions.topP;
+  if (requestOptions?.topK !== undefined) params.top_k = requestOptions.topK;
+  // disableReasoning wins over an explicit effort: without a disable knob on
+  // the CC API, the lowest effort is the closest equivalent.
+  if (requestOptions?.disableReasoning) {
+    params.reasoning_effort = "minimal";
+  } else if (requestOptions?.reasoning !== undefined) {
+    params.reasoning_effort = requestOptions.reasoning;
+  }
 
   return {
     config: {

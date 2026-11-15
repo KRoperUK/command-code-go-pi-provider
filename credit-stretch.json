@@ -1,0 +1,10 @@
+{
+  "source": "manual",
+  "offers": [
+    { "model": "DeepSeek V4 Pro", "multiplier": "4×" },
+    { "model": "Nemotron 3 Ultra", "multiplier": "2.3×" },
+    { "model": "Qwen 3.7 Max", "multiplier": "2×" },
+    { "model": "MiniMax M3", "multiplier": "2×" },
+    { "model": "MiMo V2.5 Pro", "discount": "99%" }
+  ]
+}

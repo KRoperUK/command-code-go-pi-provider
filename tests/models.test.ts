@@ -70,6 +70,35 @@ describe("toPiModel", () => {
     expect(result.maxTokens).toBe(8_192);
   });
 
+  test("advertises image input for vision-capable models", () => {
+    const entry: CCModelEntry = {
+      id: "gpt-5.4",
+      name: "GPT-5.4",
+      tier: "premium",
+      reasoning: true,
+      tool_call: true,
+      vision: true,
+      cost: { input: 2.5, output: 15.0 },
+      limit: { context: 400_000, output: 128_000 },
+    };
+
+    expect(toPiModel(entry).input).toEqual(["text", "image"]);
+  });
+
+  test("text-only models keep the legacy input shape", () => {
+    const entry: CCModelEntry = {
+      id: "test-model",
+      name: "Test",
+      tier: "open-source",
+      reasoning: false,
+      tool_call: true,
+      cost: { input: 1.0, output: 2.0 },
+      limit: { context: 100_000, output: 4_096 },
+    };
+
+    expect(toPiModel(entry).input).toEqual(["text"]);
+  });
+
   test("handles missing cache fields", () => {
     const entry: CCModelEntry = {
       id: "test-model",
