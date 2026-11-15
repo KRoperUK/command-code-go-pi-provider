@@ -163,6 +163,45 @@ describe("buildRequest", () => {
 
     expect(result.params.messages).toHaveLength(1);
   });
+
+  test("forwards reasoning effort into request params", () => {
+    const result = buildRequest("test-model", { messages: [] }, null, { reasoning: "low" });
+
+    expect(result.params.reasoning_effort).toBe("low");
+  });
+
+  test("disableReasoning overrides an explicit effort with minimal", () => {
+    const result = buildRequest(
+      "test-model",
+      { messages: [] },
+      null,
+      { reasoning: "high", disableReasoning: true },
+    );
+
+    expect(result.params.reasoning_effort).toBe("minimal");
+  });
+
+  test("forwards sampling params when provided", () => {
+    const result = buildRequest(
+      "test-model",
+      { messages: [] },
+      null,
+      { temperature: 0.2, topP: 0.9, topK: 40 },
+    );
+
+    expect(result.params.temperature).toBe(0.2);
+    expect(result.params.top_p).toBe(0.9);
+    expect(result.params.top_k).toBe(40);
+  });
+
+  test("omits reasoning and sampling params by default", () => {
+    const result = buildRequest("test-model", { messages: [] });
+
+    expect(result.params.reasoning_effort).toBeUndefined();
+    expect(result.params.temperature).toBeUndefined();
+    expect(result.params.top_p).toBeUndefined();
+    expect(result.params.top_k).toBeUndefined();
+  });
 });
 
 describe("convertTools", () => {

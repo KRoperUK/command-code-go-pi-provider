@@ -74,7 +74,17 @@ export interface CCRequestEnvelope {
     temperature?: number;
     top_p?: number;
     top_k?: number;
+    reasoning_effort?: string;
   };
+}
+
+/** Sampling and reasoning overrides forwarded into the CC request params. */
+export interface BuildRequestOptions {
+  reasoning?: string;
+  disableReasoning?: boolean;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
 }
 
 // --- Message conversion ---
@@ -226,6 +236,7 @@ export function buildRequest(
   modelId: string,
   context: Context,
   maxTokens?: number | null,
+  requestOptions?: BuildRequestOptions,
 ): CCRequestEnvelope {
   let systemPrompt = "";
   const messages: CCMessage[] = [];
@@ -254,6 +265,17 @@ export function buildRequest(
     max_tokens: Math.min(maxTokens ?? 16384, 200_000),
     stream: true,
   };
+
+  if (requestOptions?.temperature !== undefined) params.temperature = requestOptions.temperature;
+  if (requestOptions?.topP !== undefined) params.top_p = requestOptions.topP;
+  if (requestOptions?.topK !== undefined) params.top_k = requestOptions.topK;
+  // disableReasoning wins over an explicit effort: without a disable knob on
+  // the CC API, the lowest effort is the closest equivalent.
+  if (requestOptions?.disableReasoning) {
+    params.reasoning_effort = "minimal";
+  } else if (requestOptions?.reasoning !== undefined) {
+    params.reasoning_effort = requestOptions.reasoning;
+  }
 
   return {
     config: {

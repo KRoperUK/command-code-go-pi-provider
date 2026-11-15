@@ -42,7 +42,13 @@ function streamSimple(
 
   const baseUrl = model.baseUrl ?? CC_BASE_URL;
   const ccModelId = model.requestModelId ?? model.id;
-  const request = buildRequest(ccModelId, context, options?.maxTokens ?? model.maxTokens);
+  const request = buildRequest(ccModelId, context, options?.maxTokens ?? model.maxTokens, {
+    reasoning: options?.reasoning,
+    disableReasoning: options?.disableReasoning,
+    temperature: options?.temperature,
+    topP: options?.topP,
+    topK: options?.topK,
+  });
   const stream = new StreamImpl();
   const output = createOutput(request.params.model);
 
